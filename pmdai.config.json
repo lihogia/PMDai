@@ -2,9 +2,7 @@
   "projectsRoot": "~/_projects",
   "claudeDir": "~/.claude",
   "port": 4319,
-  "exclude": [
-    "PMDai"
-  ],
+  "exclude": [],
   "extraProjects": [],
   "defaults": {
     "currency": "USD",
