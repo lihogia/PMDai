@@ -1,0 +1,47 @@
+{
+  "name": "pmdai",
+  "version": "0.1.0",
+  "description": "PMDai - project, effort and billing dashboard for BMad + Claude Code projects",
+  "type": "module",
+  "private": true,
+  "scripts": {
+    "dev": "concurrently -k -n api,web -c blue,green \"npm:dev:api\" \"npm:dev:web\"",
+    "dev:api": "node --watch-path=server server/index.js",
+    "dev:web": "vite",
+    "build": "vite build",
+    "start": "vite build && node server/index.js",
+    "test": "node --test server/test/*.test.js"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "dependencies": {
+    "chokidar": "^4.0.3",
+    "express": "^4.21.2",
+    "gray-matter": "^4.0.3",
+    "js-yaml": "^4.1.0"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-react": "^4.3.4",
+    "concurrently": "^9.1.2",
+    "marked": "^15.0.6",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "vite": "^6.0.7"
+  },
+  "license": "MIT",
+  "author": "lihogia",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/lihogia/PMDai.git"
+  },
+  "homepage": "https://github.com/lihogia/PMDai#readme",
+  "keywords": [
+    "bmad",
+    "claude-code",
+    "project-management",
+    "time-tracking",
+    "billing",
+    "dashboard"
+  ]
+}

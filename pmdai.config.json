@@ -1,0 +1,37 @@
+{
+  "projectsRoot": "~/_projects",
+  "claudeDir": "~/.claude",
+  "port": 4319,
+  "exclude": [
+    "PMDai"
+  ],
+  "extraProjects": [],
+  "defaults": {
+    "currency": "USD",
+    "hourly_rate": 40,
+    "idle_threshold_minutes": 10,
+    "rounding_minutes": 15
+  },
+  "pricing_note": "USD per million tokens. Placeholder values - check https://www.anthropic.com/pricing and edit. On a Claude subscription plan this is a notional cost.",
+  "pricing": {
+    "opus": {
+      "input": 5,
+      "output": 25,
+      "cache_write": 6.25,
+      "cache_read": 0.5
+    },
+    "sonnet": {
+      "input": 3,
+      "output": 15,
+      "cache_write": 3.75,
+      "cache_read": 0.3
+    },
+    "haiku": {
+      "input": 1,
+      "output": 5,
+      "cache_write": 1.25,
+      "cache_read": 0.1
+    }
+  },
+  "docsExclude": []
+}
