@@ -163,6 +163,7 @@ export function indexBmad(root) {
       updated: st ? st.mtime.toISOString() : null,
       doneAt: normalizeStatus(rawStatus) === 'done' ? toDate(fm.completed || fm.done) || (st ? st.mtime.toISOString() : null) : null,
       estimate: numberOrNull(fm.estimate ?? fm.points ?? fm.story_points),
+      priority: fm.priority ?? fm.severity ?? null,
       warranty: fm.warranty === true,
       tasksTotal: tasks.length,
       tasksDone: tasks.filter((t) => t[1].toLowerCase() === 'x').length,

@@ -1,5 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import { StatusPill, KindTag } from './ui.jsx';
+import ItemDialog from './ItemDialog.jsx';
 import { fmtHours, fmtDate, fmtMoney } from '../api.js';
 
 export default function Items({ p }) {
@@ -7,6 +8,7 @@ export default function Items({ p }) {
   const [kind, setKind] = useState('all');
   const [status, setStatus] = useState('all');
   const [ws, setWs] = useState('all');
+  const [open, setOpen] = useState(null);
   const wsLabel = new Map((p.workstreams || []).map((w) => [w.id, w.label]));
   const [sort, setSort] = useState({ key: 'updated', dir: -1 });
   const kinds = [...new Set(p.items.map((i) => i.kind))];
@@ -35,7 +37,7 @@ export default function Items({ p }) {
           <thead><tr>{th('title', 'Item')}{th('workstream', 'Workstream')}{th('kind', 'Type')}{th('status', 'Status')}{th('priority', 'Priority')}{th('epic', 'Epic')}{th('estimate', 'Est.')}{th('actualMinutes', 'Effort')}{th('aiCost', 'AI cost')}{th('created', 'Created')}{th('updated', 'Updated')}</tr></thead>
           <tbody>
             {rows.map((i) => (
-              <tr key={i.id}>
+              <tr key={i.id} className="clickable" onClick={() => setOpen(i)}>
                 <td title={[i.file || i.sprintKey, i.note].filter(Boolean).join(' · ')}>{i.storyNum && <b>{i.storyNum} </b>}{i.title}</td>
                 <td className="muted small">{wsLabel.get(i.workstream) || '—'}</td>
                 <td><KindTag kind={i.kind} /></td>
@@ -52,6 +54,7 @@ export default function Items({ p }) {
           </tbody>
         </table>
       </div>
+      {open && <ItemDialog projectId={p.id} item={open} onClose={() => setOpen(null)} />}
       <p className="muted small">Effort is linked to an item when a Claude session mentions its spec file or story key. Add <code>estimate:</code> to an item's frontmatter for per-story billing. Items outside BMad come from tracker files (status.md, BACKLOG.md, todo.md…): checkboxes, table rows under a Done / To do / Still open heading, and sub-headings under those.</p>
     </div>
   );

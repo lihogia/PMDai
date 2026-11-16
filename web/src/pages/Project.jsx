@@ -34,7 +34,7 @@ export default function Project({ id, tab }) {
         ))}
       </nav>
       {tab === 'overview' && <Overview p={p} s={s} />}
-      {tab === 'board' && <Board items={p.items} epics={p.epics} workstreams={p.workstreams} />}
+      {tab === 'board' && <Board projectId={p.id} items={p.items} epics={p.epics} workstreams={p.workstreams} />}
       {tab === 'items' && <Items p={p} />}
       {tab === 'docs' && <Docs p={p} />}
       {tab === 'effort' && <Effort p={p} />}

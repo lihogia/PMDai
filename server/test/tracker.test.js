@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { parseTracker, headingStatus, isTracker, workstreamOf } from '../indexer/tracker.js';
+import { parseTracker, headingStatus, isTracker, workstreamOf, trackerSection } from '../indexer/tracker.js';
 
 const status = `# SEO audit: status of fixes
 
@@ -87,4 +87,13 @@ test('tracker file detection and workstreams', () => {
   assert.ok(isTracker('notes.md', { pmdai: 'tracker' }));
   assert.equal(workstreamOf('seo-audit/status.md'), 'seo-audit');
   assert.equal(workstreamOf('BACKLOG.md'), 'BACKLOG');
+});
+
+test('item section: a heading item gets its section, a row or checkbox its own line', () => {
+  const items = parseTracker(backlog, { workstream: 'BACKLOG' });
+  const mailpit = items.find((i) => /Mailpit/.test(i.title));
+  assert.equal(trackerSection(backlog, mailpit), '### Add Mailpit for test email (2026-10-09)\n\n- [x] mailpit service\n- [x] docs');
+  const row = parseTracker(status, { workstream: 'seo-audit' }).find((i) => i.source === 'table');
+  assert.equal(trackerSection(status, row), '| Finding | Fix | Commit |\n|---|---|---|\n| Canonical hardcoded to `/` on every page | Each page gives its own URL | `6f47b8a` |');
+  assert.equal(trackerSection(status, { source: 'table', line: 999 }), null);
 });

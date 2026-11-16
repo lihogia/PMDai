@@ -92,7 +92,8 @@ export function parseTracker(content, { workstream, file, fallbackDate = null } 
     return items[items.length - 1];
   };
 
-  for (const raw of lines) {
+  for (const [n, raw] of lines.entries()) {
+    const line = n + 1; // 1-based, so the item dialog can show its section of the file
     if (/^\s*```/.test(raw)) { inCode = !inCode; continue; }
     if (inCode) continue;
     const h = /^(#{1,6})\s+(.+?)\s*#*\s*$/.exec(raw);
@@ -106,7 +107,7 @@ export function parseTracker(content, { workstream, file, fallbackDate = null } 
       // A heading below a status heading is itself a work item ("### Add Mailpit (2026-10-09)")
       const plain = /^(current )?(status|overview|summary|notes?|context|introduction|legend|how to|about)\b/i.test(text);
       if (parentStatus && !own && !plain && level > (ctxHeading()?.level || 0)) {
-        current = push({ title: text.replace(/\s*\(20\d\d-\d\d-\d\d\)\s*$/, ''), status: parentStatus, rawStatus: ctxHeading().text, date: dateIn(text), source: 'heading' });
+        current = push({ title: text.replace(/\s*\(20\d\d-\d\d-\d\d\)\s*$/, ''), status: parentStatus, rawStatus: ctxHeading().text, date: dateIn(text), source: 'heading', line });
         stack.push({ level, text, status: null, item: current });
       } else {
         current = null;
@@ -120,7 +121,7 @@ export function parseTracker(content, { workstream, file, fallbackDate = null } 
       const checked = cb[1].toLowerCase() === 'x';
       if (current) { current.tasksTotal++; if (checked) current.tasksDone++; continue; }
       const text = stripMd(cb[2]);
-      push({ title: text.length > 160 ? text.slice(0, 157) + '…' : text, status: checked ? 'done' : (ctxStatus() === 'in-progress' ? 'in-progress' : 'backlog'), rawStatus: checked ? '[x]' : '[ ]', date: dateIn(text), source: 'checkbox' });
+      push({ title: text.length > 160 ? text.slice(0, 157) + '…' : text, status: checked ? 'done' : (ctxStatus() === 'in-progress' ? 'in-progress' : 'backlog'), rawStatus: checked ? '[x]' : '[ ]', date: dateIn(text), source: 'checkbox', line });
       continue;
     }
 
@@ -143,7 +144,7 @@ export function parseTracker(content, { workstream, file, fallbackDate = null } 
         status: rowStatus, rawStatus: statusCol >= 0 ? stripMd(cells[statusCol]) : ctxHeading().text,
         priority: prioCol >= 0 ? stripMd(cells[prioCol]) : null,
         note: noteCol >= 0 ? stripMd(cells[noteCol]) : null,
-        date: dateIn(cells.join(' ')), source: 'table',
+        date: dateIn(cells.join(' ')), source: 'table', line,
       });
       continue;
     }
@@ -155,6 +156,30 @@ export function parseTracker(content, { workstream, file, fallbackDate = null } 
     if (it.source === 'heading' && it.tasksTotal > 0 && it.status !== 'done' && it.tasksDone === it.tasksTotal) it.status = 'done';
   }
   return items;
+}
+
+/** The part of a tracker file that belongs to one item: a heading item's section (up to the next heading
+ *  of the same or higher level), a table row with its table header, or the checkbox line. Exported for tests. */
+export function trackerSection(content, item) {
+  const lines = content.split(/\r?\n/);
+  const start = (item.line || 0) - 1;
+  if (start < 0 || start >= lines.length) return null;
+  if (item.source === 'table') {
+    // header + separator rows above it, so the row renders as a table
+    let top = start;
+    while (top > 0 && /^\s*\|/.test(lines[top - 1])) top--;
+    return [lines[top], lines[top + 1], lines[start]].map((l) => l.trim()).join('\n');
+  }
+  if (item.source !== 'heading') return lines[start].trim();
+  const level = /^(#{1,6})\s/.exec(lines[start])?.[1].length || 6;
+  let end = start + 1;
+  let inCode = false;
+  for (; end < lines.length; end++) {
+    if (/^\s*```/.test(lines[end])) inCode = !inCode;
+    const h = !inCode && /^(#{1,6})\s/.exec(lines[end]);
+    if (h && h[1].length <= level) break;
+  }
+  return lines.slice(start, end).join('\n').trim();
 }
 
 export function isTracker(rel, fm = {}) {

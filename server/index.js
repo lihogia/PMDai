@@ -4,6 +4,7 @@ import express from 'express';
 import { loadConfig, APP_ROOT } from './config.js';
 import { Index } from './indexer/index.js';
 import { readDoc, safePath, COLUMNS } from './indexer/bmad.js';
+import { trackerSection } from './indexer/tracker.js';
 import { writeSettings, deepMerge, addTimeEntry, deleteTimeEntry, BILLING_MODES, ITEM_KINDS } from './settings.js';
 import { computeInvoice, invoiceCsv } from './billing.js';
 
@@ -43,6 +44,21 @@ app.get('/api/projects/:id', wrap((req, res) => {
 app.get('/api/projects/:id/sessions', wrap((req, res) => res.json(project(req).sessions)));
 
 app.get('/api/projects/:id/doc', wrap((req, res) => res.json(readDoc(project(req).root, String(req.query.path || '')))));
+
+// One item plus its planning/solution text: its own spec/story file, or its section of a tracker file.
+app.get('/api/projects/:id/item', wrap((req, res) => {
+  const p = project(req);
+  const item = p.items.find((i) => i.id === String(req.query.id || ''));
+  if (!item) { const e = new Error('Item not found'); e.status = 404; throw e; }
+  let content = null;
+  let frontmatter = {};
+  if (item.file?.toLowerCase().endsWith('.md')) {
+    const doc = readDoc(p.root, item.file);
+    if (item.source) content = trackerSection(doc.content, item);
+    else ({ content, frontmatter } = doc);
+  }
+  res.json({ item, content, frontmatter });
+}));
 
 // HTML reports (e.g. seo-audit-2026-11-13.html) are shown in a sandboxed iframe: no scripts, no same-origin access.
 app.get('/api/projects/:id/raw', wrap((req, res) => {

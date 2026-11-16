@@ -1,10 +1,12 @@
 import React, { useState } from 'react';
 import { COL_LABEL, KindTag } from './ui.jsx';
+import ItemDialog from './ItemDialog.jsx';
 import { fmtHours } from '../api.js';
 
 const COLS = ['backlog', 'ready', 'in-progress', 'review', 'done'];
 
-export default function Board({ items, epics, workstreams = [] }) {
+export default function Board({ projectId, items, epics, workstreams = [] }) {
+  const [open, setOpen] = useState(null);
   const [epic, setEpic] = useState('all');
   const [ws, setWs] = useState('all');
   const [kind, setKind] = useState('all');
@@ -31,7 +33,7 @@ export default function Board({ items, epics, workstreams = [] }) {
             <div key={c} className="col">
               <div className={`col-head s-${c}`}>{COL_LABEL[c]} <span>{col.length}</span></div>
               {col.slice(0, 150).map((i) => (
-                <div key={i.id} className="ticket">
+                <div key={i.id} className="ticket" onClick={() => setOpen(i)}>
                   <div className="ticket-t">{i.storyNum && <b>{i.storyNum} </b>}{i.title}</div>
                   <div className="row small muted">
                     <KindTag kind={i.kind} />
@@ -48,6 +50,7 @@ export default function Board({ items, epics, workstreams = [] }) {
           );
         })}
       </div>
+      {open && <ItemDialog projectId={projectId} item={open} onClose={() => setOpen(null)} />}
     </div>
   );
 }
