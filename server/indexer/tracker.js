@@ -177,10 +177,6 @@ export function indexGeneric(root, { excludeDirs = DEFAULT_EXCLUDE_DIRS } = {}) 
     const full = path.join(root, rel);
     const doc = makeDoc(root, full, path.dirname(rel) === '.' ? 'Repo' : workstreamLabel(ws));
     doc.workstream = path.dirname(rel) === '.' ? null : ws;
-    doc.format = isHtml ? 'html' : 'md';
-    if (isHtml) {
-      try { doc.title = /<title>([^<]+)<\/title>/i.exec(fs.readFileSync(full, 'utf8').slice(0, 4000))?.[1]?.trim() || doc.title; } catch {}
-    }
     docs.push(doc);
     if (isHtml) continue;
     let md;

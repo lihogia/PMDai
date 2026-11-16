@@ -10,7 +10,7 @@ PMDai only **reads** what your tools already write:
 | `_bmad-output/implementation-artifacts/sprint-status.yaml` (BMad v6) | Epics, stories, statuses, retro action items |
 | `_bmad-output/planning-artifacts/epics.md` | Epic and story titles |
 | `_bmad-output/implementation-artifacts/spec-*.md` | Stories, bugs (`type: bugfix`), backlog items, tasks, from frontmatter |
-| `_bmad-output/**` other `.md` | PRD, architecture, UX, briefs, retros, test artifacts (Docs tab) |
+| `_bmad-output/**` other `.md`, and any `.html` | PRD, architecture, UX, briefs, retros, test artifacts; HTML mockups, walkthroughs, brainstorms (Docs tab) |
 | `docs/stories/*.md` (BMad v4) | Stories with a `## Status` section |
 | `.pmdai/items/*.md` | Your own bugs/tests/backlog items (frontmatter `type`, `status`, `estimate`) |
 | `~/.claude/projects/**/*.jsonl` | Claude Code sessions: active time, tokens, AI cost, which item they worked on |

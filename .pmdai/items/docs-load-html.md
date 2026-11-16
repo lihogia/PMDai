@@ -1,7 +1,8 @@
 ---
 title: Docs tab loads HTML files as well
 type: backlog
-status: backlog
+status: done
+completed: 2026-11-14
 created: 2026-11-14
 ---
 

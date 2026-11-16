@@ -23,15 +23,15 @@ export function normalizeStatus(s) {
 const statSafe = (p) => { try { return fs.statSync(p); } catch { return null; } };
 const readSafe = (p) => { try { return fs.readFileSync(p, 'utf8'); } catch { return null; } };
 
-function listMd(dir, { recursive = true, maxDepth = 5 } = {}, depth = 0, out = []) {
+function listMd(dir, { recursive = true, maxDepth = 5, exts = ['.md'] } = {}, depth = 0, out = []) {
   if (depth > maxDepth) return out;
   let entries;
   try { entries = fs.readdirSync(dir, { withFileTypes: true }); } catch { return out; }
   for (const e of entries) {
     if (e.name.startsWith('.') || e.name === 'node_modules') continue;
     const full = path.join(dir, e.name);
-    if (e.isDirectory() && recursive) listMd(full, { recursive, maxDepth }, depth + 1, out);
-    else if (e.isFile() && e.name.toLowerCase().endsWith('.md')) out.push(full);
+    if (e.isDirectory() && recursive) listMd(full, { recursive, maxDepth, exts }, depth + 1, out);
+    else if (e.isFile() && exts.some((x) => e.name.toLowerCase().endsWith(x))) out.push(full);
   }
   return out;
 }
@@ -100,15 +100,27 @@ function docCategory(rel) {
   return 'Other';
 }
 
+const isHtmlFile = (f) => /\.html?$/i.test(f);
+
+// HTML title: <title>, else the file name (or its folder's, for index.html)
+function htmlTitle(file) {
+  const t = /<title>([^<]+)<\/title>/i.exec((readSafe(file) || '').slice(0, 4000))?.[1]?.trim();
+  if (t) return t;
+  const base = path.basename(file).replace(/\.html?$/i, '');
+  return base.toLowerCase() === 'index' ? path.basename(path.dirname(file)) : base;
+}
+
 export function makeDoc(root, file, category) {
   const st = statSafe(file);
-  const md = parseMd(file);
   const rel = path.relative(root, file);
+  const html = isHtmlFile(file);
+  const md = html ? null : parseMd(file);
   return {
     id: rel,
     path: rel,
-    title: md?.data?.title || firstHeading(md?.content) || path.basename(file, '.md'),
+    title: html ? htmlTitle(file) : md?.data?.title || firstHeading(md?.content) || path.basename(file, '.md'),
     category: category || docCategory(rel),
+    format: html ? 'html' : 'md',
     updated: st ? st.mtime.toISOString() : null,
     size: st ? st.size : 0,
   };
@@ -215,9 +227,9 @@ export function indexBmad(root) {
       }));
     }
 
-    // Planning + other output docs
-    for (const f of listMd(out)) {
-      if (f.startsWith(impl + path.sep)) continue;
+    // Planning + other output docs, and HTML anywhere in the output (mockups, walkthroughs, brainstorms)
+    for (const f of listMd(out, { exts: ['.md', '.html', '.htm'] })) {
+      if (f.startsWith(impl + path.sep) && !isHtmlFile(f)) continue;
       docs.push(makeDoc(root, f));
     }
   } else if (version === 'v4') {
