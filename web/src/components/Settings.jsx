@@ -47,6 +47,9 @@ export default function Settings({ p, onSaved }) {
       <div className="card form-grid">
         <h3 className="span-all">Project</h3>
         <Field label="Display name"><input value={s.name || ''} onChange={(e) => setTop('name', e.target.value)} /></Field>
+        <Field label="Item ID prefix" hint={`IDs look like ${s.abbreviation || p.abbreviation}-BUG-4. Changing it renames every ID.`}>
+          <input value={s.abbreviation || ''} onChange={(e) => setTop('abbreviation', e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 6))} placeholder={p.abbreviation} />
+        </Field>
         <Field label="Customer"><input value={s.customer || ''} onChange={(e) => setTop('customer', e.target.value)} placeholder="Who gets the invoice" /></Field>
         <Field label="Currency"><input value={s.currency || ''} onChange={(e) => setTop('currency', e.target.value.toUpperCase())} maxLength={3} /></Field>
         <Field label="Project type" hint={suggested ? `Suggested billing: ${MODES.find((m) => m[0] === suggested)[1]}` : ''}>

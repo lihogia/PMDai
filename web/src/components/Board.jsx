@@ -34,7 +34,7 @@ export default function Board({ projectId, items, epics, workstreams = [] }) {
               <div className={`col-head s-${c}`}>{COL_LABEL[c]} <span>{col.length}</span></div>
               {col.slice(0, 150).map((i) => (
                 <div key={i.id} className="ticket" onClick={() => setOpen(i)}>
-                  <div className="ticket-t">{i.storyNum && <b>{i.storyNum} </b>}{i.title}</div>
+                  <div className="ticket-t"><span className="sid">{i.shortId}</span> {i.title}</div>
                   <div className="row small muted">
                     <KindTag kind={i.kind} />
                     {i.tasksTotal > 0 && <span>☑ {i.tasksDone}/{i.tasksTotal}</span>}

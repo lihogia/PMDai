@@ -12,6 +12,7 @@ export const ITEM_KINDS = ['story', 'task', 'backlog', 'bug', 'change_request', 
 export function defaultSettings(name, defaults = {}) {
   return {
     name,
+    abbreviation: '', // item ID prefix (PMD-BUG-4); empty = derived from the folder name
     customer: '',
     project_type: 'feature_work',
     currency: defaults.currency || 'USD',

@@ -1,0 +1,9 @@
+{
+  "docs-load-html": "BL-1",
+  "load-pmdai-project": "BL-2",
+  "auto-gitignore": "BL-3",
+  "html-docs-render": "BUG-1",
+  "item-detail-dialog": "BL-4",
+  "item-ids": "BL-5",
+  "live-item-status": "BL-6"
+}

@@ -52,6 +52,9 @@ Requires Node 20+. Settings in `pmdai.config.json` (copy to `pmdai.local.json` t
 - **Linking to items**: a session is linked to the item whose spec file (`spec-5-4-...md`) or story key
   (`5-4-bounce-...`) it mentions most. Sessions that mention none are "unlinked". Tip: start story work
   with the spec path in your prompt so the link is reliable.
+- **Item IDs**: every item gets a short ID like `PMD-E2-3` (epic 2, story 3), `PMD-BUG-4` or `PMD-BL-7`; naming it
+  in a prompt links the session too. Stories derive theirs; other items are numbered once and remembered in
+  `.pmdai/ids.json` (commit it). The prefix is set in the Settings tab.
 - **AI cost**: tokens × `pricing` in `pmdai.config.json` (USD per million tokens, **placeholder values -
   check them**). On a subscription plan this is a notional cost.
 

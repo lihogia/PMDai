@@ -3,11 +3,12 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import readline from 'node:readline';
+import { SHORT_ID_RE } from './ids.js';
 
 const cache = new Map(); // file -> { key, session }
 
 // Mentions of BMad artifacts inside a session, used to attribute effort to an item.
-const MENTION_RE = /(?:spec-([a-z0-9][a-z0-9._-]*?)\.md)|(?:stories\/([0-9]+\.[0-9]+[a-z0-9._-]*?)\.md)|(?:\.pmdai\/items\/([a-z0-9._-]+?)\.md)|(?:\b(\d+-\d+-[a-z0-9-]{4,})\b)/gi;
+const MENTION_RE = /(?:spec-([a-z0-9][a-z0-9._-]*?)\.md)|(?:stories\/([0-9]+\.[0-9]+[a-z0-9._-]*?)\.md)|(?:\.pmdai\/items\/([a-z0-9._-]+?)\.md)|(?:\b(\d+-\d+-[a-z0-9-]{4,})\b)|(?:\b([a-z][a-z0-9]{1,5}-(?:e\d+-\d+[a-z]?|[a-z]{1,6}-\d+))\b)/gi;
 
 const PATH_RE = /(?:^|[\s"'`(=:])((?:[\w.@-]+\/)*[\w.@-]+\/[\w.@-]+\.(?:md|html?|php|js|jsx|ts|tsx|py|css|ya?ml|json|xml|sh))(?=[\s"'`),:\]]|$)/g;
 
@@ -101,7 +102,7 @@ async function parseSessionFile(file) {
       s.paths[p] = (s.paths[p] || 0) + 1;
     }
     for (const m of line.matchAll(MENTION_RE)) {
-      const id = (m[1] || m[2] || m[3] || m[4]).toLowerCase();
+      const id = (m[1] || m[2] || m[3] || m[4] || m[5]).toLowerCase();
       s.mentions[id] = (s.mentions[id] || 0) + 1;
     }
   }
@@ -149,7 +150,7 @@ export function sessionsForProject(all, root) {
 }
 
 /** Summarize sessions for one project: active time, cost, attribution to known item ids. */
-export function summarizeSessions(sessions, { idleMinutes, pricing, itemIds, root = '', workstreams = [], itemWorkstream = {} }) {
+export function summarizeSessions(sessions, { idleMinutes, pricing, itemIds, aliases = new Map(), root = '', workstreams = [], itemWorkstream = {} }) {
   const rootL = root.toLowerCase();
   const wsMatch = (s) => {
     const score = {};
@@ -168,7 +169,9 @@ export function summarizeSessions(sessions, { idleMinutes, pricing, itemIds, roo
   };
   const known = new Set(itemIds.map((i) => i.toLowerCase()));
   const resolveItem = (mention) => {
+    if (aliases.has(mention)) return aliases.get(mention); // sprint keys, short IDs (PMD-BUG-4)
     if (known.has(mention)) return mention;
+    if (SHORT_ID_RE.test(mention)) return null; // exact only: PMD-BUG-1 must not match PMD-BUG-12
     // sprint keys can be truncated; match on prefix like "5-6-launch-validate"
     for (const id of known) if (id.startsWith(mention) || mention.startsWith(id)) return id;
     return null;
@@ -197,7 +200,7 @@ export function summarizeSessions(sessions, { idleMinutes, pricing, itemIds, roo
         cost: Math.round(costOf(s.usage, pricing) * 100) / 100,
         models: s.models,
         itemId: ranked[0]?.[0] || null,
-        workstream: (ranked[0] && itemWorkstream[ranked[0][0]]) || wsMatch(s),
+        workstream: (ranked[0] && itemWorkstream[ranked[0][0].toLowerCase()]) || wsMatch(s),
         relatedItems: ranked.slice(0, 5).map(([id, n]) => ({ id, mentions: n })),
         firstPrompt: s.firstPrompt,
         gitBranch: s.gitBranch,

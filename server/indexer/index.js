@@ -6,6 +6,7 @@ import { EventEmitter } from 'node:events';
 import chokidar from 'chokidar';
 import { indexBmad, detectBmad, COLUMNS } from './bmad.js';
 import { indexGeneric, DEFAULT_EXCLUDE_DIRS, workstreamLabel } from './tracker.js';
+import { assignShortIds, defaultAbbreviation } from './ids.js';
 
 const ROOT_MARKERS = ['.git', '_bmad', '_bmad-output', '.bmad-core', '.pmdai', 'package.json', 'composer.json', 'pubspec.yaml',
   'pyproject.toml', 'requirements.txt', 'go.mod', 'Cargo.toml', 'Makefile', 'docker-compose.yml', 'CLAUDE.md', 'README.md'];
@@ -73,19 +74,22 @@ export class Index extends EventEmitter {
     const workstreams = generic.workstreams;
     if (bmad.version) workstreams.unshift({ id: 'bmad', label: `BMad ${bmad.version}`, docs: bmad.docs.filter((d) => d.workstream === 'bmad').length, updated: null });
     for (const it of bmad.items) it.workstream ||= bmad.version ? 'bmad' : null;
+    const abbreviation = settings.abbreviation || defaultAbbreviation(path.basename(root));
+    assignShortIds(root, bmad.items, abbreviation);
 
     const timeEntries = readTimeEntries(root);
     const sessions = summarizeSessions(sessionsForProject(this.allSessions, root), {
       idleMinutes: Number(settings.billing.idle_threshold_minutes) || 10,
       pricing: this.config.pricing,
-      itemIds: [...bmad.items.map((i) => i.id), ...bmad.items.map((i) => i.sprintKey).filter(Boolean)],
+      itemIds: bmad.items.map((i) => i.id),
+      aliases: new Map([
+        ...bmad.items.filter((i) => i.sprintKey).map((i) => [i.sprintKey.toLowerCase(), i.id]),
+        ...bmad.items.map((i) => [i.shortId.toLowerCase(), i.id]),
+      ]),
       root,
       workstreams: workstreams.map((w) => w.id).filter((w) => w !== 'bmad'),
       itemWorkstream: Object.fromEntries(bmad.items.map((i) => [i.id.toLowerCase(), i.workstream])),
     });
-    // map sprint-key attributions back onto item ids
-    const keyToId = new Map(bmad.items.filter((i) => i.sprintKey).map((i) => [i.sprintKey.toLowerCase(), i.id]));
-    for (const s of sessions) if (s.itemId && keyToId.has(s.itemId)) s.itemId = keyToId.get(s.itemId);
 
     // per-item actual effort
     const effortByItem = {};
@@ -116,7 +120,7 @@ export class Index extends EventEmitter {
       w.label ||= workstreamLabel(w.id);
     }
     const name = settings.name && settings.name !== path.basename(root) ? settings.name : id.split('~').join(' / ');
-    return { id, root, name, workstreams, configured: hasSettings(root), bmadVersion: bmad.version || detectBmad(root), settings, ...bmad, sessions, timeEntries };
+    return { id, root, name, abbreviation, workstreams, configured: hasSettings(root), bmadVersion: bmad.version || detectBmad(root), settings, ...bmad, sessions, timeEntries };
   }
 
   refreshProject(root) {

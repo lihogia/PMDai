@@ -37,7 +37,7 @@ export default function ItemDialog({ projectId, item, onClose }) {
     <div className="overlay" onClick={onClose}>
       <div className="card dialog" role="dialog" aria-modal="true" aria-label={i.title} onClick={(e) => e.stopPropagation()}>
         <div className="row">
-          <h3 className="dialog-t">{i.storyNum && <b>{i.storyNum} </b>}{i.title}</h3>
+          <h3 className="dialog-t"><span className="sid">{i.shortId}</span> {i.title}</h3>
           <div className="spacer" />
           <button className="btn ghost small" onClick={onClose} aria-label="Close">✕</button>
         </div>

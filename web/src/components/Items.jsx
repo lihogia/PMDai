@@ -15,7 +15,7 @@ export default function Items({ p }) {
   const rows = useMemo(() => {
     const ql = q.toLowerCase();
     return p.items
-      .filter((i) => (ws === 'all' || i.workstream === ws) && (kind === 'all' || i.kind === kind) && (status === 'all' || i.status === status) && (!ql || i.title.toLowerCase().includes(ql) || i.id.includes(ql)))
+      .filter((i) => (ws === 'all' || i.workstream === ws) && (kind === 'all' || i.kind === kind) && (status === 'all' || i.status === status) && (!ql || i.title.toLowerCase().includes(ql) || i.id.includes(ql) || i.shortId.toLowerCase().includes(ql)))
       .sort((a, b) => {
         const va = a[sort.key] ?? ''; const vb = b[sort.key] ?? '';
         return (typeof va === 'number' && typeof vb === 'number' ? va - vb : String(va).localeCompare(String(vb))) * sort.dir;
@@ -34,10 +34,11 @@ export default function Items({ p }) {
       </div>
       <div className="card flush">
         <table className="table">
-          <thead><tr>{th('title', 'Item')}{th('workstream', 'Workstream')}{th('kind', 'Type')}{th('status', 'Status')}{th('priority', 'Priority')}{th('epic', 'Epic')}{th('estimate', 'Est.')}{th('actualMinutes', 'Effort')}{th('aiCost', 'AI cost')}{th('created', 'Created')}{th('updated', 'Updated')}</tr></thead>
+          <thead><tr>{th('shortId', 'ID')}{th('title', 'Item')}{th('workstream', 'Workstream')}{th('kind', 'Type')}{th('status', 'Status')}{th('priority', 'Priority')}{th('epic', 'Epic')}{th('estimate', 'Est.')}{th('actualMinutes', 'Effort')}{th('aiCost', 'AI cost')}{th('created', 'Created')}{th('updated', 'Updated')}</tr></thead>
           <tbody>
             {rows.map((i) => (
               <tr key={i.id} className="clickable" onClick={() => setOpen(i)}>
+                <td className="sid">{i.shortId}</td>
                 <td title={[i.file || i.sprintKey, i.note].filter(Boolean).join(' · ')}>{i.storyNum && <b>{i.storyNum} </b>}{i.title}</td>
                 <td className="muted small">{wsLabel.get(i.workstream) || '—'}</td>
                 <td><KindTag kind={i.kind} /></td>
@@ -55,7 +56,7 @@ export default function Items({ p }) {
         </table>
       </div>
       {open && <ItemDialog projectId={p.id} item={open} onClose={() => setOpen(null)} />}
-      <p className="muted small">Effort is linked to an item when a Claude session mentions its spec file or story key. Add <code>estimate:</code> to an item's frontmatter for per-story billing. Items outside BMad come from tracker files (status.md, BACKLOG.md, todo.md…): checkboxes, table rows under a Done / To do / Still open heading, and sub-headings under those.</p>
+      <p className="muted small">Effort is linked to an item when a Claude session mentions its spec file or story key. Mention an item's ID (e.g. <code>{p.abbreviation}-BUG-4</code>) in a prompt to link the session to it. Add <code>estimate:</code> to an item's frontmatter for per-story billing. Items outside BMad come from tracker files (status.md, BACKLOG.md, todo.md…): checkboxes, table rows under a Done / To do / Still open heading, and sub-headings under those.</p>
     </div>
   );
 }

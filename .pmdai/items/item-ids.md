@@ -1,7 +1,8 @@
 ---
 title: Short IDs on every item, and get Claude to mention them
 type: backlog
-status: backlog
+status: done
+completed: 2026-11-17
 created: 2026-11-17
 ---
 

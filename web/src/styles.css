@@ -97,6 +97,7 @@ main { max-width: 1400px; margin: 0 auto; padding: 20px 24px 60px; }
 .col-head span { color: var(--muted); font-weight: 400; }
 .ticket { border: 1px solid var(--line); border-radius: 8px; padding: 8px; background: var(--bg); }
 .ticket-t { margin-bottom: 6px; }
+.sid { font: 600 12px ui-monospace, SFMono-Regular, Menlo, monospace; color: var(--muted); white-space: nowrap; }
 .ticket { cursor: pointer; } .ticket:hover { border-color: var(--accent); }
 .table tr.clickable { cursor: pointer; } .table tr.clickable:hover td { background: var(--accent-soft); }
 .overlay { position: fixed; inset: 0; background: rgba(0, 0, 0, 0.45); display: flex; align-items: flex-start; justify-content: center; padding: 6vh 16px; z-index: 50; }
