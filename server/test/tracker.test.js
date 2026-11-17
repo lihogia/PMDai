@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { parseTracker, headingStatus, isTracker, workstreamOf, trackerSection } from '../indexer/tracker.js';
+import { parseTracker, headingStatus, isTracker, workstreamOf, trackerSection, setStatusBefore } from '../indexer/tracker.js';
 
 const status = `# SEO audit: status of fixes
 
@@ -73,7 +73,7 @@ test('BACKLOG.md: sub-headings are items, checkboxes are their tasks', () => {
   const items = parseTracker(backlog, { workstream: 'BACKLOG', file: 'BACKLOG.md' });
   assert.deepEqual(items.map((i) => [i.title, i.status, i.tasksDone, i.tasksTotal]), [
     ['Add Mailpit for test email', 'done', 2, 2],
-    ['Watchdog for Rundeck callbacks', 'ready', 1, 2],
+    ['Watchdog for Rundeck callbacks', 'in-progress', 1, 2], // Planned, but 1 of 2 tasks done: started
   ]);
   assert.ok(items[0].doneAt.startsWith('2026-10-09'));
 });
@@ -96,4 +96,38 @@ test('item section: a heading item gets its section, a row or checkbox its own l
   const row = parseTracker(status, { workstream: 'seo-audit' }).find((i) => i.source === 'table');
   assert.equal(trackerSection(status, row), '| Finding | Fix | Commit |\n|---|---|---|\n| Canonical hardcoded to `/` on every page | Each page gives its own URL | `6f47b8a` |');
   assert.equal(trackerSection(status, { source: 'table', line: 999 }), null);
+});
+
+test('status before: same line, reworded line, and a new line', () => {
+  const now = [
+    { id: 'a', title: 'No hreflang', status: 'done' },
+    { id: 'b2', title: 'Rooms only existed as AJAX pop-ups', status: 'done' },
+    { id: 'c', title: 'Google Business Profile', status: 'backlog' },
+  ];
+  setStatusBefore(now, [{ id: 'a', title: 'No hreflang', status: 'backlog' }, { id: 'b', title: 'Rooms only exist as AJAX pop-ups', status: 'backlog' }]);
+  assert.deepEqual(now.map((i) => i.statusBefore), ['backlog', 'backlog', 'absent']);
+});
+
+test('a heading item with some numbered parts done is in progress', () => {
+  const md = `## To do
+
+### Room page improvements
+
+**1. Spacing**
+- **Done (17 Nov 2026):** tidied
+- detail
+
+**2. Icons**
+- **Done (17 Nov 2026):** icons
+
+**3. Book this room**
+- not started
+
+### Ad video
+- an idea
+`;
+  const [room, video] = parseTracker(md, { workstream: 'seo-audit' });
+  assert.deepEqual([room.status, room.tasksDone, room.tasksTotal], ['in-progress', 2, 3]);
+  assert.match(room.rawStatus, /2 of 3 parts done/);
+  assert.deepEqual([video.status, video.tasksTotal], ['backlog', 0]);
 });

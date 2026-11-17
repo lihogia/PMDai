@@ -59,6 +59,11 @@ Requires Node 20+. Settings in `pmdai.config.json` (copy to `pmdai.local.json` t
   tagged **implementing** when code was edited (Edit/Write on non-markdown files) while it was the item last
   mentioned, or **investigating** when it was only discussed or read (2+ mentions). Edits made through shell commands
   aren't counted. Done items stay done.
+- **Just changed first**: Board and Items list items added or moved to a new status in the last `justChangedHours`
+  (default 24, counted from when you look) first, with a "new" or "Backlog → Done" badge; the rest follow by when they
+  were added or updated. PMDai remembers each item's last status in `~/.pmdai/history/` (outside your repos).
+  For tracker files in git, each item's "updated" is when its own line last changed (`git blame`), and the first run
+  compares with the file as it was `justChangedHours` ago, so recent work shows right away.
 - **AI cost**: tokens × `pricing` in `pmdai.config.json` (USD per million tokens, **placeholder values -
   check them**). On a subscription plan this is a notional cost.
 

@@ -12,6 +12,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import matter from 'gray-matter';
 import { makeDoc } from './bmad.js';
+import { lineTimes, revBefore, fileAt } from './git.js';
 
 export const DEFAULT_EXCLUDE_DIRS = [
   'node_modules', '.git', 'vendor', 'vendors', 'bower_components', 'assets', 'extensions', 'framework', 'yii',
@@ -75,6 +76,7 @@ export function parseTracker(content, { workstream, file, fallbackDate = null } 
   const kind = kindFor(workstream || '');
   const stack = []; // headings: { level, text, status }
   let current = null; // heading item collecting checkbox tasks
+  let partDone = true; // whether the current bold numbered part ("**2. Icons**") has a "**Done**" line yet
   let table = null; // { headers, statusCtx }
   let inCode = false;
   // nearest status heading above; a "plain" heading (Current status, Notes...) blocks inheritance
@@ -99,6 +101,7 @@ export function parseTracker(content, { workstream, file, fallbackDate = null } 
     const h = /^(#{1,6})\s+(.+?)\s*#*\s*$/.exec(raw);
     if (h) {
       table = null;
+      partDone = true;
       const level = h[1].length;
       const text = stripMd(h[2]);
       while (stack.length && stack[stack.length - 1].level >= level) stack.pop();
@@ -115,6 +118,10 @@ export function parseTracker(content, { workstream, file, fallbackDate = null } 
       }
       continue;
     }
+
+    // Parts of a heading item written as bold numbered paragraphs, done when one of their lines starts with **Done
+    if (current && /^\s*\*\*\d+[.)]\s/.test(raw)) { current.tasksTotal++; partDone = false; continue; }
+    if (current && !partDone && /^\s*(?:[-*+]\s+)?\*\*done\b/i.test(raw)) { current.tasksDone++; partDone = true; continue; }
 
     const cb = /^\s*[-*+]\s+\[( |x|X)\]\s+(.+)$/.exec(raw);
     if (cb) {
@@ -151,9 +158,15 @@ export function parseTracker(content, { workstream, file, fallbackDate = null } 
     if (raw.trim() === '') continue;
     table = null;
   }
-  // Heading items: derive status from their checkboxes when they have any
+  // Heading items: derive status from their tasks (checkboxes or numbered parts) when they have any:
+  // all done -> done; some done -> work has started, so in progress
   for (const it of items) {
-    if (it.source === 'heading' && it.tasksTotal > 0 && it.status !== 'done' && it.tasksDone === it.tasksTotal) it.status = 'done';
+    if (it.source !== 'heading' || !it.tasksTotal || it.status === 'done') continue;
+    if (it.tasksDone === it.tasksTotal) it.status = 'done';
+    else if (it.tasksDone > 0 && (it.status === 'backlog' || it.status === 'ready')) {
+      it.status = 'in-progress';
+      it.rawStatus = `${it.rawStatus}; ${it.tasksDone} of ${it.tasksTotal} parts done`;
+    }
   }
   return items;
 }
@@ -171,6 +184,11 @@ export function trackerSection(content, item) {
     return [lines[top], lines[top + 1], lines[start]].map((l) => l.trim()).join('\n');
   }
   if (item.source !== 'heading') return lines[start].trim();
+  return lines.slice(start, sectionEnd(lines, start)).join('\n').trim();
+}
+
+// End (exclusive) of the heading section starting at line index `start`
+function sectionEnd(lines, start) {
   const level = /^(#{1,6})\s/.exec(lines[start])?.[1].length || 6;
   let end = start + 1;
   let inCode = false;
@@ -179,7 +197,15 @@ export function trackerSection(content, item) {
     const h = !inCode && /^(#{1,6})\s/.exec(lines[end]);
     if (h && h[1].length <= level) break;
   }
-  return lines.slice(start, end).join('\n').trim();
+  return end;
+}
+
+/** Per item, the time its own lines last changed (git blame), instead of the whole file's time. */
+function lineUpdated(item, lines, times, offset) {
+  const start = (item.line || 0) - 1;
+  if (!times || start < 0) return null;
+  const end = item.source === 'heading' ? sectionEnd(lines, start) : start + 1;
+  return times.slice(offset + start, offset + end).filter(Boolean).sort().pop() || null;
 }
 
 export function isTracker(rel, fm = {}) {
@@ -188,9 +214,30 @@ export function isTracker(rel, fm = {}) {
   return TRACKER_NAME.test(path.basename(rel).replace(/\.md$/i, ''));
 }
 
+const words = (t) => new Set(t.toLowerCase().match(/[a-z0-9]+/g) || []);
+const overlap = (a, b) => { let n = 0; for (const w of a) if (b.has(w)) n++; return n / Math.max(a.size, b.size, 1); };
+
+/** Set `statusBefore` on each item from an older version of its file: the old status, or 'absent'. A line
+ *  reworded when it moved (e.g. "exist" -> "existed" on the way to Done) still matches the old line if most of its
+ *  words are the same. Exported for tests. */
+export function setStatusBefore(items, oldItems) {
+  const byId = new Map(oldItems.map((i) => [i.id, i]));
+  const gone = oldItems.filter((o) => !items.some((i) => i.id === o.id));
+  for (const it of items) {
+    let old = byId.get(it.id);
+    if (!old && gone.length) {
+      const w = words(it.title);
+      const best = gone.map((o) => [o, overlap(w, words(o.title))]).sort((a, b) => b[1] - a[1])[0];
+      if (best[1] >= 0.6) { old = best[0]; gone.splice(gone.indexOf(old), 1); }
+    }
+    it.statusBefore = old ? old.status : 'absent';
+  }
+}
+
 /** Docs + tracker items + workstream summary for any repo. */
-export function indexGeneric(root, { excludeDirs = DEFAULT_EXCLUDE_DIRS } = {}) {
+export function indexGeneric(root, { excludeDirs = DEFAULT_EXCLUDE_DIRS, since = null } = {}) {
   const files = walk(root, excludeDirs);
+  const rev = since ? revBefore(root, since) : null; // null: not in git, no baseline
   const mdDirs = new Set(files.filter((f) => /\.md$/i.test(f)).map((f) => path.dirname(f)));
   const docs = [];
   const items = [];
@@ -204,13 +251,27 @@ export function indexGeneric(root, { excludeDirs = DEFAULT_EXCLUDE_DIRS } = {}) 
     doc.workstream = path.dirname(rel) === '.' ? null : ws;
     docs.push(doc);
     if (isHtml) continue;
+    let raw;
     let md;
-    try { md = matter(fs.readFileSync(full, 'utf8')); } catch { continue; }
+    try { raw = fs.readFileSync(full, 'utf8'); md = matter(raw); } catch { continue; }
     if (!isTracker(rel, md.data)) continue;
     doc.tracker = true;
     const st = fs.statSync(full);
     const found = parseTracker(md.content, { workstream: ws, file: rel, fallbackDate: st.mtime.toISOString() });
-    for (const it of found) { it.updated = st.mtime.toISOString(); it.created = it.created || null; }
+    // Item lines are counted in the content after frontmatter; blame counts the whole file
+    const lines = md.content.split(/\r?\n/);
+    const offset = raw.slice(0, Math.max(0, raw.indexOf(md.content))).split('\n').length - 1;
+    const times = lineTimes(root, rel);
+    for (const it of found) {
+      it.updated = lineUpdated(it, lines, times, offset) || st.mtime.toISOString();
+      it.created = it.created || null;
+    }
+    // Statuses as of `since`, from git: lets the first run show what was added or moved recently
+    if (rev != null) {
+      let oldContent = '';
+      try { oldContent = matter(fileAt(root, rev, rel)).content; } catch {}
+      setStatusBefore(found, parseTracker(oldContent, { workstream: ws, file: rel }));
+    }
     items.push(...found);
   }
   // Workstreams = folders (or root tracker files) that hold docs or items

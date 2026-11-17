@@ -5,6 +5,7 @@
   "exclude": [],
   "extraProjects": [],
   "activeItemDays": 7,
+  "justChangedHours": 24,
   "defaults": {
     "currency": "USD",
     "hourly_rate": 40,

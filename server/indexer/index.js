@@ -7,6 +7,7 @@ import chokidar from 'chokidar';
 import { indexBmad, detectBmad, COLUMNS } from './bmad.js';
 import { indexGeneric, DEFAULT_EXCLUDE_DIRS, workstreamLabel } from './tracker.js';
 import { assignShortIds, defaultAbbreviation } from './ids.js';
+import { trackHistory } from './history.js';
 
 const ROOT_MARKERS = ['.git', '_bmad', '_bmad-output', '.bmad-core', '.pmdai', 'package.json', 'composer.json', 'pubspec.yaml',
   'pyproject.toml', 'requirements.txt', 'go.mod', 'Cargo.toml', 'Makefile', 'docker-compose.yml', 'CLAUDE.md', 'README.md'];
@@ -91,7 +92,10 @@ export class Index extends EventEmitter {
     const id = this.projectId(root);
     const settings = readSettings(root, this.config.defaults);
     const bmad = indexBmad(root);
-    const generic = indexGeneric(root, { excludeDirs: [...DEFAULT_EXCLUDE_DIRS, ...(this.config.docsExclude || [])] });
+    const generic = indexGeneric(root, {
+      excludeDirs: [...DEFAULT_EXCLUDE_DIRS, ...(this.config.docsExclude || [])],
+      since: new Date(Date.now() - this.config.justChangedHours * 3600000).toISOString(),
+    });
     // Merge: BMad items/docs plus every other report and tracker in the repo
     bmad.items.push(...generic.items);
     const seen = new Set(bmad.docs.map((d) => d.path));
@@ -128,6 +132,7 @@ export class Index extends EventEmitter {
       e.minutes += t.minutes;
     }
     applyActivity(bmad.items, sessions, Date.now() - (this.config.activeItemDays ?? 7) * 86400000);
+    trackHistory(this.config.dataDir, id, bmad.items);
 
     for (const it of bmad.items) {
       const e = effortByItem[it.id];
@@ -148,7 +153,7 @@ export class Index extends EventEmitter {
       w.label ||= workstreamLabel(w.id);
     }
     const name = settings.name && settings.name !== path.basename(root) ? settings.name : id.split('~').join(' / ');
-    return { id, root, name, abbreviation, workstreams, configured: hasSettings(root), bmadVersion: bmad.version || detectBmad(root), settings, ...bmad, sessions, timeEntries };
+    return { id, root, name, abbreviation, justChangedHours: this.config.justChangedHours, workstreams, configured: hasSettings(root), bmadVersion: bmad.version || detectBmad(root), settings, ...bmad, sessions, timeEntries };
   }
 
   refreshProject(root) {

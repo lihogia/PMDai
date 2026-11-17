@@ -31,6 +31,8 @@ export function loadConfig() {
   cfg.port = Number(process.env.PORT || cfg.port || 4319);
   cfg.exclude = cfg.exclude || [];
   cfg.activeItemDays = Number(cfg.activeItemDays ?? 7); // how long a Claude session keeps an item "in progress"
+  cfg.justChangedHours = Number(cfg.justChangedHours ?? 24); // items added or moved this recently are listed first
+  cfg.dataDir = expandHome(cfg.dataDir || '~/.pmdai'); // PMDai's own state (item history), outside project repos
   cfg.extraProjects = (cfg.extraProjects || []).map(expandHome);
   return cfg;
 }

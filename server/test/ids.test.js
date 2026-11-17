@@ -55,3 +55,14 @@ test('a session that names a short ID is linked to that item, exactly', () => {
   assert.equal(summarizeSessions([session('pmd-bug-1')], opts)[0].itemId, 'crash');
   assert.equal(summarizeSessions([session('pmd-bug-123')], opts)[0].itemId, null);
 });
+
+test('code edits go to the last known item named before them; unknown IDs do not take the focus', () => {
+  const s = {
+    id: 's', timestamps: [0, 60000], mentions: { 'pmd-bl-1': 2, 'pmd-bug-99': 1, 'pmd-bl-2': 2 }, usage: {}, paths: {}, userText: '', models: [],
+    activity: { 'pmd-bl-1': { mentions: 2, at: 't1' }, 'pmd-bug-99': { mentions: 1, at: 't2' }, 'pmd-bl-2': { mentions: 2, at: 't3' } },
+    trail: [{ m: 'pmd-bl-1' }, { e: 2, at: 't2' }, { m: 'pmd-bug-99' }, { e: 1, at: 't3' }, { m: 'pmd-bl-2' }],
+  };
+  const [out] = summarizeSessions([s], { idleMinutes: 10, pricing: {}, itemIds: ['one', 'two'], aliases: new Map([['pmd-bl-1', 'one'], ['pmd-bl-2', 'two']]) });
+  assert.equal(out.itemActivity.one.edits, 3); // pmd-bug-99 is no item: the focus stays on PMD-BL-1
+  assert.equal(out.itemActivity.two.edits, 0);
+});

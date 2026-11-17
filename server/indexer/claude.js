@@ -63,10 +63,10 @@ async function parseSessionFile(file) {
     userText: '',
     paths: {},
     codeEdits: 0, // Edit/Write calls on files other than markdown: the session implemented something
-    activity: {}, // mention -> { mentions, edits, at }: code edits go to the item mentioned last before them
+    activity: {}, // mention -> { mentions, at }
+    trail: [], // in order: { m: mention that sets the focus } and { e: code edits, at }, resolved against known items later
     gitBranch: null,
   };
-  let current = null;
   const seen = new Set();
   for await (const line of rl) {
     if (!line.trim()) continue;
@@ -113,19 +113,19 @@ async function parseSessionFile(file) {
       const p = m[1].toLowerCase();
       s.paths[p] = (s.paths[p] || 0) + 1;
     }
+    if (ev.type === 'attachment') continue; // hook context (e.g. PMDai's own item list), system notes: nobody wrote these
+    // The item in focus is the one you or Claude last named; tool output (file listings, git status) doesn't move it
+    const focus = ev.type === 'assistant' || (ev.type === 'user' && !(Array.isArray(ev.message?.content) && ev.message.content.some((x) => x.type === 'tool_result')));
     for (const m of line.matchAll(MENTION_RE)) {
       const id = (m[1] || m[2] || m[3] || m[4] || m[5]).toLowerCase();
       s.mentions[id] = (s.mentions[id] || 0) + 1;
-      current = id;
-      const a = (s.activity[id] ||= { mentions: 0, edits: 0, at: null });
+      if (focus && s.trail.at(-1)?.m !== id) s.trail.push({ m: id });
+      const a = (s.activity[id] ||= { mentions: 0, at: null });
       a.mentions++;
       if (ev.timestamp) a.at = ev.timestamp;
     }
     s.codeEdits += lineEdits;
-    if (lineEdits && current) {
-      s.activity[current].edits += lineEdits;
-      if (ev.timestamp) s.activity[current].at = ev.timestamp;
-    }
+    if (lineEdits) s.trail.push({ e: lineEdits, at: ev.timestamp || null });
   }
   s.models = [...s.models];
   return s;
@@ -197,15 +197,19 @@ export function summarizeSessions(sessions, { idleMinutes, pricing, itemIds, ali
     for (const id of known) if (id.startsWith(mention) || mention.startsWith(id)) return id;
     return null;
   };
-  // per item: mentions, code edits made while it was the item in focus, last time it was touched
-  const resolveActivity = (raw) => {
+  // per item: mentions, code edits made while it was the item in focus (the last known item you or Claude
+  // named before the edit), last time it was touched
+  const resolveActivity = (s) => {
     const out = {};
-    for (const [m, a] of Object.entries(raw)) {
+    const touch = (id, at) => { const o = (out[id] ||= { mentions: 0, edits: 0, at: null }); if (at && (!o.at || at > o.at)) o.at = at; return o; };
+    for (const [m, a] of Object.entries(s.activity || {})) {
       const id = resolveItem(m);
-      if (!id) continue;
-      const o = (out[id] ||= { mentions: 0, edits: 0, at: null });
-      o.mentions += a.mentions; o.edits += a.edits;
-      if (a.at && (!o.at || a.at > o.at)) o.at = a.at;
+      if (id) touch(id, a.at).mentions += a.mentions;
+    }
+    let current = null;
+    for (const t of s.trail || []) {
+      if (t.m) current = resolveItem(t.m) || current; // an unknown ID (an example, test data) doesn't take the focus
+      else if (current) touch(current, t.at).edits += t.e;
     }
     return out;
   };
@@ -229,7 +233,7 @@ export function summarizeSessions(sessions, { idleMinutes, pricing, itemIds, ali
         wallMinutes: Math.round((end - start) / 60000),
         userTurns: s.userTurns,
         codeEdits: s.codeEdits || 0,
-        itemActivity: resolveActivity(s.activity || {}),
+        itemActivity: resolveActivity(s),
         tokens,
         usage: s.usage,
         cost: Math.round(costOf(s.usage, pricing) * 100) / 100,

@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { marked } from 'marked';
 import { api, fmtHours, fmtDate, fmtMoney } from '../api.js';
-import { StatusPill, KindTag, ActivityTag } from './ui.jsx';
+import { StatusPill, KindTag, ActivityTag, COL_LABEL } from './ui.jsx';
 
 /** Item details: status, priority, and its planning/solution (spec file or tracker section). */
 export default function ItemDialog({ projectId, item, onClose }) {
@@ -30,6 +30,8 @@ export default function ItemDialog({ projectId, item, onClose }) {
     i.actualMinutes > 0 && ['Effort', fmtHours(i.actualMinutes)],
     i.aiCost > 0 && ['AI cost', fmtMoney(i.aiCost)],
     i.lastWorkedAt && ['Last worked on', `${fmtDate(i.lastWorkedAt)} (Claude)`],
+    i.statusChangedAt && i.prevStatus && ['Status changed', `${fmtDate(i.statusChangedAt)} (from ${COL_LABEL[i.prevStatus] || i.prevStatus})`],
+    i.firstSeen && i.firstSeen !== i.created && ['Added', fmtDate(i.firstSeen)],
     ['Created', fmtDate(i.created)],
     ['Updated', fmtDate(i.updated)],
   ].filter(Boolean);

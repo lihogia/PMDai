@@ -1,11 +1,11 @@
 import React, { useState } from 'react';
-import { COL_LABEL, KindTag, ActivityTag } from './ui.jsx';
+import { COL_LABEL, KindTag, ActivityTag, RecentTag, sortRecentFirst } from './ui.jsx';
 import ItemDialog from './ItemDialog.jsx';
 import { fmtHours } from '../api.js';
 
 const COLS = ['backlog', 'ready', 'in-progress', 'review', 'done'];
 
-export default function Board({ projectId, items, epics, workstreams = [] }) {
+export default function Board({ projectId, items, epics, workstreams = [], hours }) {
   const [open, setOpen] = useState(null);
   const [epic, setEpic] = useState('all');
   const [ws, setWs] = useState('all');
@@ -28,7 +28,7 @@ export default function Board({ projectId, items, epics, workstreams = [] }) {
       </div>
       <div className="board">
         {COLS.map((c) => {
-          const col = shown.filter((i) => i.status === c).sort((a, b) => String(b.updated).localeCompare(String(a.updated)));
+          const col = sortRecentFirst(shown.filter((i) => i.status === c), hours);
           return (
             <div key={c} className="col">
               <div className={`col-head s-${c}`}>{COL_LABEL[c]} <span>{col.length}</span></div>
@@ -38,6 +38,7 @@ export default function Board({ projectId, items, epics, workstreams = [] }) {
                   <div className="row small muted">
                     <KindTag kind={i.kind} />
                     <ActivityTag item={i} />
+                    <RecentTag item={i} hours={hours} />
                     {i.tasksTotal > 0 && <span>☑ {i.tasksDone}/{i.tasksTotal}</span>}
                     <div className="spacer" />
                     {i.actualMinutes > 0 && <span title="Tracked effort">{fmtHours(i.actualMinutes)}</span>}

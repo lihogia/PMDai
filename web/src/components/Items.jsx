@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import { StatusPill, KindTag, ActivityTag } from './ui.jsx';
+import { StatusPill, KindTag, ActivityTag, RecentTag, sortRecentFirst } from './ui.jsx';
 import ItemDialog from './ItemDialog.jsx';
 import { fmtHours, fmtDate, fmtMoney } from '../api.js';
 
@@ -10,17 +10,19 @@ export default function Items({ p }) {
   const [ws, setWs] = useState('all');
   const [open, setOpen] = useState(null);
   const wsLabel = new Map((p.workstreams || []).map((w) => [w.id, w.label]));
-  const [sort, setSort] = useState({ key: 'updated', dir: -1 });
+  const [sort, setSort] = useState({ key: 'recent', dir: -1 });
   const kinds = [...new Set(p.items.map((i) => i.kind))];
   const rows = useMemo(() => {
     const ql = q.toLowerCase();
-    return p.items
-      .filter((i) => (ws === 'all' || i.workstream === ws) && (kind === 'all' || i.kind === kind) && (status === 'all' || i.status === status) && (!ql || i.title.toLowerCase().includes(ql) || i.id.includes(ql) || i.shortId.toLowerCase().includes(ql)))
+    const shown = p.items
+      .filter((i) => (ws === 'all' || i.workstream === ws) && (kind === 'all' || i.kind === kind) && (status === 'all' || i.status === status) && (!ql || i.title.toLowerCase().includes(ql) || i.id.includes(ql) || i.shortId.toLowerCase().includes(ql)));
+    if (sort.key === 'recent') return sortRecentFirst(shown, p.justChangedHours);
+    return shown
       .sort((a, b) => {
         const va = a[sort.key] ?? ''; const vb = b[sort.key] ?? '';
         return (typeof va === 'number' && typeof vb === 'number' ? va - vb : String(va).localeCompare(String(vb))) * sort.dir;
       });
-  }, [p.items, q, kind, status, sort, ws]);
+  }, [p.items, p.justChangedHours, q, kind, status, sort, ws]);
   const th = (key, label) => <th onClick={() => setSort((s) => ({ key, dir: s.key === key ? -s.dir : -1 }))} className="sortable">{label}{sort.key === key ? (sort.dir > 0 ? ' ▲' : ' ▼') : ''}</th>;
 
   return (
@@ -30,6 +32,7 @@ export default function Items({ p }) {
         {(p.workstreams || []).length > 1 && <select value={ws} onChange={(e) => setWs(e.target.value)}><option value="all">All workstreams</option>{p.workstreams.map((w) => <option key={w.id} value={w.id}>{w.label}</option>)}</select>}
         <select value={kind} onChange={(e) => setKind(e.target.value)}><option value="all">All types</option>{kinds.map((k) => <option key={k}>{k}</option>)}</select>
         <select value={status} onChange={(e) => setStatus(e.target.value)}><option value="all">All statuses</option>{['backlog', 'ready', 'in-progress', 'review', 'done'].map((k) => <option key={k}>{k}</option>)}</select>
+        {sort.key !== 'recent' && <button className="btn ghost small" onClick={() => setSort({ key: 'recent', dir: -1 })}>Recent first</button>}
         <span className="muted small">{rows.length} of {p.items.length}</span>
       </div>
       <div className="card flush">
@@ -42,7 +45,7 @@ export default function Items({ p }) {
                 <td title={[i.file || i.sprintKey, i.note].filter(Boolean).join(' · ')}>{i.storyNum && <b>{i.storyNum} </b>}{i.title}</td>
                 <td className="muted small">{wsLabel.get(i.workstream) || '—'}</td>
                 <td><KindTag kind={i.kind} /></td>
-                <td><StatusPill status={i.status} raw={i.rawStatus} /> <ActivityTag item={i} /></td>
+                <td><StatusPill status={i.status} raw={i.rawStatus} /> <ActivityTag item={i} /> <RecentTag item={i} hours={p.justChangedHours} /></td>
                 <td>{i.priority || '—'}</td>
                 <td>{i.epic ?? '—'}</td>
                 <td>{i.estimate ?? '—'}</td>

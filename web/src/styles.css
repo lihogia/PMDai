@@ -98,6 +98,7 @@ main { max-width: 1400px; margin: 0 auto; padding: 20px 24px 60px; }
 .ticket { border: 1px solid var(--line); border-radius: 8px; padding: 8px; background: var(--bg); }
 .ticket-t { margin-bottom: 6px; }
 .act-investigating { color: var(--c-review); border-color: var(--c-review); } .act-implementing { color: var(--amber); border-color: var(--amber); }
+.recent-new { color: var(--c-done); border-color: var(--c-done); } .recent-moved { color: var(--c-ready); border-color: var(--c-ready); }
 .sid { font: 600 12px ui-monospace, SFMono-Regular, Menlo, monospace; color: var(--muted); white-space: nowrap; }
 .ticket { cursor: pointer; } .ticket:hover { border-color: var(--accent); }
 .table tr.clickable { cursor: pointer; } .table tr.clickable:hover td { background: var(--accent-soft); }
