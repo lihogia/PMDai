@@ -25,7 +25,8 @@ add more in `docsExclude` in `pmdai.config.json`.
 
 Folders under `projectsRoot` that only contain repos (e.g. `client-x/{website,ops}`) show one project per repo.
 
-It **writes** only two files, inside each project repo (commit them or gitignore them):
+It **writes** only two files, inside each project repo. They hold billing data, so before writing them the first time
+PMDai adds them to the repo's `.gitignore` (if it has one, and unless `.pmdai/` is already ignored):
 
 - `.pmdai/project.yml`: customer, project type and billing settings (edited from the Settings tab)
 - `.pmdai/time-entries.json`: time you log by hand (meetings, manual QA...)

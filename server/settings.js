@@ -1,5 +1,6 @@
 // Per-project settings (<repo>/.pmdai/project.yml) and manual time entries
-// (<repo>/.pmdai/time-entries.json). Both live in the project repo so they can be committed.
+// (<repo>/.pmdai/time-entries.json). Both live in the project repo; they hold billing data, so when the repo
+// has a .gitignore, PMDai adds them to it before writing the first time.
 import fs from 'node:fs';
 import path from 'node:path';
 import crypto from 'node:crypto';
@@ -47,6 +48,24 @@ export function deepMerge(a, b) {
 const settingsFile = (root) => path.join(root, '.pmdai', 'project.yml');
 const timeFile = (root) => path.join(root, '.pmdai', 'time-entries.json');
 
+export const GITIGNORE_ENTRIES = ['.pmdai/project.yml', '.pmdai/time-entries.json'];
+
+/** Append PMDai's files to the repo's .gitignore, if it has one. Lines that already cover them
+ *  (the exact path, or the whole .pmdai folder, with or without a leading /) are respected.
+ *  Returns the entries added. */
+export function ensureGitignored(root) {
+  const file = path.join(root, '.gitignore');
+  let text;
+  try { text = fs.readFileSync(file, 'utf8'); } catch { return []; }
+  const lines = new Set(text.split(/\r?\n/).map((l) => l.trim().replace(/^\//, '').replace(/\/$/, '')));
+  if (lines.has('.pmdai') || lines.has('.pmdai/*') || lines.has('.pmdai/**')) return [];
+  const missing = GITIGNORE_ENTRIES.filter((e) => !lines.has(e));
+  if (!missing.length) return [];
+  const sep = text === '' || text.endsWith('\n') ? '' : '\n';
+  fs.appendFileSync(file, `${sep}\n# PMDai (billing settings and time entries)\n${missing.join('\n')}\n`);
+  return missing;
+}
+
 export function hasSettings(root) {
   return fs.existsSync(settingsFile(root));
 }
@@ -79,6 +98,7 @@ export function validateSettings(s) {
 export function writeSettings(root, settings) {
   const errors = validateSettings(settings);
   if (errors.length) { const e = new Error(errors.join('; ')); e.status = 400; throw e; }
+  ensureGitignored(root);
   fs.mkdirSync(path.dirname(settingsFile(root)), { recursive: true });
   const header = '# PMDai project settings - edited from the PMDai dashboard or by hand.\n';
   fs.writeFileSync(settingsFile(root), header + yaml.dump(settings, { lineWidth: 120, noRefs: true }));
@@ -90,6 +110,7 @@ export function readTimeEntries(root) {
 }
 
 function saveTimeEntries(root, entries) {
+  ensureGitignored(root);
   fs.mkdirSync(path.dirname(timeFile(root)), { recursive: true });
   fs.writeFileSync(timeFile(root), JSON.stringify(entries, null, 2) + '\n');
 }

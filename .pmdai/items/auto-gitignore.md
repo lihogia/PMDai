@@ -1,7 +1,8 @@
 ---
 title: Add PMDai files to a project's .gitignore when integrating it
 type: backlog
-status: backlog
+status: done
+completed: 2026-11-17
 created: 2026-11-16
 ---
 
