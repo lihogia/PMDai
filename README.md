@@ -62,6 +62,19 @@ Requires Node 20+. Settings in `pmdai.config.json` (copy to `pmdai.local.json` t
 - **AI cost**: tokens × `pricing` in `pmdai.config.json` (USD per million tokens, **placeholder values -
   check them**). On a subscription plan this is a notional cost.
 
+## Getting Claude to name item IDs (optional hook)
+
+`hooks/item-ids.mjs` is a Claude Code hook. At session start it lists the project's open items and their IDs; when a
+prompt names no ID it adds a one-line reminder to name the item being worked on. It only acts in projects PMDai
+indexes and never blocks a prompt. Add it to `~/.claude/settings.json`:
+
+```json
+"hooks": {
+  "SessionStart": [{ "hooks": [{ "type": "command", "command": "node ~/_projects/PMDai/hooks/item-ids.mjs session 2>/dev/null || true", "timeout": 10 }] }],
+  "UserPromptSubmit": [{ "hooks": [{ "type": "command", "command": "node ~/_projects/PMDai/hooks/item-ids.mjs prompt 2>/dev/null || true", "timeout": 10 }] }]
+}
+```
+
 ## Billing modes (per project, Settings tab)
 
 | Mode | Bills | Suggested for |
