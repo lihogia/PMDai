@@ -45,7 +45,7 @@ export default function Docs({ p }) {
         {sel && p.docs.find((x) => x.path === sel)?.format === 'html' && (
           <>
             <div className="row muted small"><code>{sel}</code><div className="spacer" /><a href={`/api/projects/${encodeURIComponent(p.id)}/raw?path=${encodeURIComponent(sel)}`} target="_blank" rel="noreferrer">Open in new tab</a></div>
-            <iframe className="html-doc" sandbox="" title={sel} src={`/api/projects/${encodeURIComponent(p.id)}/raw?path=${encodeURIComponent(sel)}`} />
+            <iframe className="html-doc" sandbox="allow-scripts" title={sel} src={`/api/projects/${encodeURIComponent(p.id)}/raw?path=${encodeURIComponent(sel)}`} />
           </>
         )}
         {doc && sel === doc.path && (

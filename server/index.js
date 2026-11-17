@@ -60,10 +60,11 @@ app.get('/api/projects/:id/item', wrap((req, res) => {
   res.json({ item, content, frontmatter });
 }));
 
-// HTML reports (e.g. seo-audit-2026-11-13.html) are shown in a sandboxed iframe: no scripts, no same-origin access.
+// HTML reports (e.g. seo-audit-2026-11-13.html) are shown sandboxed: scripts run (many reports and walkthroughs
+// build their content with JS), but with an opaque origin and no network access, so they can't reach PMDai or its API.
 app.get('/api/projects/:id/raw', wrap((req, res) => {
   const full = safePath(project(req).root, String(req.query.path || ''), ['.html', '.htm']);
-  res.set({ 'Content-Security-Policy': "sandbox; default-src 'none'; img-src * data:; style-src 'unsafe-inline' *; font-src * data:", 'X-Content-Type-Options': 'nosniff' });
+  res.set({ 'Content-Security-Policy': "sandbox allow-scripts; default-src 'none'; script-src 'unsafe-inline' https:; img-src * data:; style-src 'unsafe-inline' *; font-src * data:", 'X-Content-Type-Options': 'nosniff' });
   res.type('html').send(fs.readFileSync(full, 'utf8'));
 }));
 

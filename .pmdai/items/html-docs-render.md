@@ -1,7 +1,8 @@
 ---
 title: Some HTML docs don't render correctly
 type: bug
-status: backlog
+status: done
+completed: 2026-11-16
 created: 2026-11-16
 ---
 

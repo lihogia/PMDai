@@ -1,7 +1,8 @@
 ---
 title: Click an item in Board / Items to open a detail dialog
 type: backlog
-status: review
+status: done
+completed: 2026-11-16
 created: 2026-11-16
 ---
 
