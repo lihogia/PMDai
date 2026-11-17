@@ -1,7 +1,8 @@
 ---
 title: Board and Items show just-changed and just-added items first
 type: backlog
-status: review
+status: done
+completed: 2026-11-17
 created: 2026-11-17
 ---
 
