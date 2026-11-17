@@ -7,6 +7,8 @@ import { SHORT_ID_RE } from './ids.js';
 
 const cache = new Map(); // file -> { key, session }
 
+const EDIT_TOOLS = new Set(['Edit', 'Write', 'MultiEdit', 'NotebookEdit']);
+
 // Mentions of BMad artifacts inside a session, used to attribute effort to an item.
 const MENTION_RE = /(?:spec-([a-z0-9][a-z0-9._-]*?)\.md)|(?:stories\/([0-9]+\.[0-9]+[a-z0-9._-]*?)\.md)|(?:\.pmdai\/items\/([a-z0-9._-]+?)\.md)|(?:\b(\d+-\d+-[a-z0-9-]{4,})\b)|(?:\b([a-z][a-z0-9]{1,5}-(?:e\d+-\d+[a-z]?|[a-z]{1,6}-\d+))\b)/gi;
 
@@ -60,8 +62,11 @@ async function parseSessionFile(file) {
     firstPrompt: null,
     userText: '',
     paths: {},
+    codeEdits: 0, // Edit/Write calls on files other than markdown: the session implemented something
+    activity: {}, // mention -> { mentions, edits, at }: code edits go to the item mentioned last before them
     gitBranch: null,
   };
+  let current = null;
   const seen = new Set();
   for await (const line of rl) {
     if (!line.trim()) continue;
@@ -80,6 +85,13 @@ async function parseSessionFile(file) {
         s.userTurns++;
         if (!s.firstPrompt) s.firstPrompt = text.slice(0, 200);
         if (s.userText.length < 6000) s.userText += ' ' + text.slice(0, 1500).toLowerCase();
+      }
+    }
+    let lineEdits = 0;
+    if (ev.type === 'assistant' && Array.isArray(ev.message?.content)) {
+      for (const c of ev.message.content) {
+        const file = c.type === 'tool_use' && EDIT_TOOLS.has(c.name) && (c.input?.file_path || c.input?.notebook_path);
+        if (file && !/\.md$/i.test(file)) lineEdits++;
       }
     }
     if (ev.type === 'assistant' && ev.message?.usage) {
@@ -104,6 +116,15 @@ async function parseSessionFile(file) {
     for (const m of line.matchAll(MENTION_RE)) {
       const id = (m[1] || m[2] || m[3] || m[4] || m[5]).toLowerCase();
       s.mentions[id] = (s.mentions[id] || 0) + 1;
+      current = id;
+      const a = (s.activity[id] ||= { mentions: 0, edits: 0, at: null });
+      a.mentions++;
+      if (ev.timestamp) a.at = ev.timestamp;
+    }
+    s.codeEdits += lineEdits;
+    if (lineEdits && current) {
+      s.activity[current].edits += lineEdits;
+      if (ev.timestamp) s.activity[current].at = ev.timestamp;
     }
   }
   s.models = [...s.models];
@@ -176,6 +197,18 @@ export function summarizeSessions(sessions, { idleMinutes, pricing, itemIds, ali
     for (const id of known) if (id.startsWith(mention) || mention.startsWith(id)) return id;
     return null;
   };
+  // per item: mentions, code edits made while it was the item in focus, last time it was touched
+  const resolveActivity = (raw) => {
+    const out = {};
+    for (const [m, a] of Object.entries(raw)) {
+      const id = resolveItem(m);
+      if (!id) continue;
+      const o = (out[id] ||= { mentions: 0, edits: 0, at: null });
+      o.mentions += a.mentions; o.edits += a.edits;
+      if (a.at && (!o.at || a.at > o.at)) o.at = a.at;
+    }
+    return out;
+  };
   return sessions
     .filter((s) => s.timestamps.length)
     .map((s) => {
@@ -195,6 +228,8 @@ export function summarizeSessions(sessions, { idleMinutes, pricing, itemIds, ali
         activeMinutes: Math.round(activeMinutes(s.timestamps, idleMinutes) * 10) / 10,
         wallMinutes: Math.round((end - start) / 60000),
         userTurns: s.userTurns,
+        codeEdits: s.codeEdits || 0,
+        itemActivity: resolveActivity(s.activity || {}),
         tokens,
         usage: s.usage,
         cost: Math.round(costOf(s.usage, pricing) * 100) / 100,

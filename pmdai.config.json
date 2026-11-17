@@ -4,6 +4,7 @@
   "port": 4319,
   "exclude": [],
   "extraProjects": [],
+  "activeItemDays": 7,
   "defaults": {
     "currency": "USD",
     "hourly_rate": 40,

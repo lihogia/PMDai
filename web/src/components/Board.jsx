@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { COL_LABEL, KindTag } from './ui.jsx';
+import { COL_LABEL, KindTag, ActivityTag } from './ui.jsx';
 import ItemDialog from './ItemDialog.jsx';
 import { fmtHours } from '../api.js';
 
@@ -37,6 +37,7 @@ export default function Board({ projectId, items, epics, workstreams = [] }) {
                   <div className="ticket-t"><span className="sid">{i.shortId}</span> {i.title}</div>
                   <div className="row small muted">
                     <KindTag kind={i.kind} />
+                    <ActivityTag item={i} />
                     {i.tasksTotal > 0 && <span>☑ {i.tasksDone}/{i.tasksTotal}</span>}
                     <div className="spacer" />
                     {i.actualMinutes > 0 && <span title="Tracked effort">{fmtHours(i.actualMinutes)}</span>}

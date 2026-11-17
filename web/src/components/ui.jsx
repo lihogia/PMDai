@@ -1,4 +1,5 @@
 import React from 'react';
+import { fmtAgo } from '../api.js';
 
 export const COL_LABEL = { backlog: 'Backlog', ready: 'Ready', 'in-progress': 'In progress', review: 'Review', done: 'Done' };
 export const KIND_LABEL = { story: 'Story', bug: 'Bug', backlog: 'Backlog', task: 'Task', test: 'Test', change_request: 'Change request', support: 'Support', meeting: 'Meeting', seo: 'SEO', security: 'Security', workstream: 'Workstream time' };
@@ -13,6 +14,9 @@ export function StatusBar({ counts }) {
 }
 
 export const StatusPill = ({ status, raw }) => <span className={`pill s-${status}`} title={raw || ''}>{COL_LABEL[status] || status}</span>;
+export const ActivityTag = ({ item }) => item.activity
+  ? <span className={`tag act-${item.activity}`} title={`Claude session ${fmtAgo(item.lastWorkedAt)}`}>{item.activity}</span>
+  : null;
 export const KindTag = ({ kind }) => <span className={`tag k-${kind}`}>{KIND_LABEL[kind] || kind}</span>;
 export const Empty = ({ children }) => <div className="empty">{children}</div>;
 

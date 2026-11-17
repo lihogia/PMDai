@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import { StatusPill, KindTag } from './ui.jsx';
+import { StatusPill, KindTag, ActivityTag } from './ui.jsx';
 import ItemDialog from './ItemDialog.jsx';
 import { fmtHours, fmtDate, fmtMoney } from '../api.js';
 
@@ -42,7 +42,7 @@ export default function Items({ p }) {
                 <td title={[i.file || i.sprintKey, i.note].filter(Boolean).join(' · ')}>{i.storyNum && <b>{i.storyNum} </b>}{i.title}</td>
                 <td className="muted small">{wsLabel.get(i.workstream) || '—'}</td>
                 <td><KindTag kind={i.kind} /></td>
-                <td><StatusPill status={i.status} raw={i.rawStatus} /></td>
+                <td><StatusPill status={i.status} raw={i.rawStatus} /> <ActivityTag item={i} /></td>
                 <td>{i.priority || '—'}</td>
                 <td>{i.epic ?? '—'}</td>
                 <td>{i.estimate ?? '—'}</td>

@@ -55,6 +55,10 @@ Requires Node 20+. Settings in `pmdai.config.json` (copy to `pmdai.local.json` t
 - **Item IDs**: every item gets a short ID like `PMD-E2-3` (epic 2, story 3), `PMD-BUG-4` or `PMD-BL-7`; naming it
   in a prompt links the session too. Stories derive theirs; other items are numbered once and remembered in
   `.pmdai/ids.json` (commit it). The prefix is set in the Settings tab.
+- **Live status**: an open item that Claude worked on in the last `activeItemDays` (default 7) shows as *In progress*,
+  tagged **implementing** when code was edited (Edit/Write on non-markdown files) while it was the item last
+  mentioned, or **investigating** when it was only discussed or read (2+ mentions). Edits made through shell commands
+  aren't counted. Done items stay done.
 - **AI cost**: tokens × `pricing` in `pmdai.config.json` (USD per million tokens, **placeholder values -
   check them**). On a subscription plan this is a notional cost.
 

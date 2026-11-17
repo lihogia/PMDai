@@ -30,6 +30,7 @@ export function loadConfig() {
   cfg.claudeDir = expandHome(process.env.PMDAI_CLAUDE_DIR || cfg.claudeDir || '~/.claude');
   cfg.port = Number(process.env.PORT || cfg.port || 4319);
   cfg.exclude = cfg.exclude || [];
+  cfg.activeItemDays = Number(cfg.activeItemDays ?? 7); // how long a Claude session keeps an item "in progress"
   cfg.extraProjects = (cfg.extraProjects || []).map(expandHome);
   return cfg;
 }

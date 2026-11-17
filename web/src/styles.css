@@ -97,6 +97,7 @@ main { max-width: 1400px; margin: 0 auto; padding: 20px 24px 60px; }
 .col-head span { color: var(--muted); font-weight: 400; }
 .ticket { border: 1px solid var(--line); border-radius: 8px; padding: 8px; background: var(--bg); }
 .ticket-t { margin-bottom: 6px; }
+.act-investigating { color: var(--c-review); border-color: var(--c-review); } .act-implementing { color: var(--amber); border-color: var(--amber); }
 .sid { font: 600 12px ui-monospace, SFMono-Regular, Menlo, monospace; color: var(--muted); white-space: nowrap; }
 .ticket { cursor: pointer; } .ticket:hover { border-color: var(--accent); }
 .table tr.clickable { cursor: pointer; } .table tr.clickable:hover td { background: var(--accent-soft); }

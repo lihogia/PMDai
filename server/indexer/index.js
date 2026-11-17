@@ -16,6 +16,32 @@ import { scanSessions, sessionsForProject, summarizeSessions } from './claude.js
 import { readSettings, readTimeEntries, hasSettings } from '../settings.js';
 import { localDate } from '../billing.js';
 
+/** Live status: an open item that Claude sessions worked on since `since` (ms) is in progress, tagged
+ *  `implementing` when code was edited while it was the item in focus, else `investigating` (needs 2+ mentions,
+ *  so a file listing that names it once doesn't count). Done items stay done. */
+export function applyActivity(items, sessions, since) {
+  const activity = {};
+  for (const s of sessions) {
+    for (const [id, x] of Object.entries(s.itemActivity || {})) {
+      const at = x.at || s.end;
+      if (Date.parse(at) < since || (x.edits === 0 && x.mentions < 2)) continue;
+      const a = (activity[id] ||= { kind: 'investigating', at });
+      if (x.edits > 0) a.kind = 'implementing';
+      if (at > a.at) a.at = at;
+    }
+  }
+  for (const it of items) {
+    const a = activity[it.id];
+    if (!a || it.status === 'done') continue;
+    it.activity = a.kind;
+    it.lastWorkedAt = a.at;
+    if (it.status === 'backlog' || it.status === 'ready') {
+      it.rawStatus = `${it.rawStatus || it.status}; ${a.kind} in Claude`;
+      it.status = 'in-progress';
+    }
+  }
+}
+
 export class Index extends EventEmitter {
   constructor(config) {
     super();
@@ -101,6 +127,8 @@ export class Index extends EventEmitter {
       const e = (effortByItem[t.itemId] ||= { minutes: 0, cost: 0, sessions: 0 });
       e.minutes += t.minutes;
     }
+    applyActivity(bmad.items, sessions, Date.now() - (this.config.activeItemDays ?? 7) * 86400000);
+
     for (const it of bmad.items) {
       const e = effortByItem[it.id];
       it.actualMinutes = e ? Math.round(e.minutes) : 0;
