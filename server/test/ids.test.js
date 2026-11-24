@@ -4,7 +4,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { assignShortIds, defaultAbbreviation } from '../indexer/ids.js';
-import { summarizeSessions } from '../indexer/claude.js';
+import { summarizeSessions, titleIndex } from '../indexer/claude.js';
 
 const tmp = () => fs.mkdtempSync(path.join(os.tmpdir(), 'pmdai-ids-'));
 const saved = (root) => JSON.parse(fs.readFileSync(path.join(root, '.pmdai', 'ids.json'), 'utf8'));
@@ -65,4 +65,28 @@ test('code edits go to the last known item named before them; unknown IDs do not
   const [out] = summarizeSessions([s], { idleMinutes: 10, pricing: {}, itemIds: ['one', 'two'], aliases: new Map([['pmd-bl-1', 'one'], ['pmd-bl-2', 'two']]) });
   assert.equal(out.itemActivity.one.edits, 3); // pmd-bug-99 is no item: the focus stays on PMD-BL-1
   assert.equal(out.itemActivity.two.edits, 0);
+});
+
+test('item titles named in prompts link the session and take the focus; summaries listing several do not', () => {
+  const titles = [
+    ['room', 'Room page improvements (`/rooms/<slug>`)'],
+    ['db', 'Database updates: apply a list of SQL files in order'],
+    ['h1', 'No H1'], // too short to recognise
+    ['ex1', 'Hands-on Exercises'], ['ex2', 'Hands-on Exercises'], // shared: ambiguous
+  ];
+  assert.deepEqual(titleIndex(titles).map(([, id]) => id).sort(), ['db', 'room']);
+  const s = {
+    id: 's', timestamps: [0, 60000], mentions: {}, usage: {}, paths: {}, userText: '', models: [], activity: {},
+    trail: [
+      { t: 'start room page improvements item 1', by: 'user', at: 't1' },
+      { e: 3, at: 't2' },
+      { t: 'Left: Room page improvements, and Database updates: apply a list of SQL files in order', by: 'claude', at: 't3' },
+      { e: 2, at: 't4' },
+      { t: 'commit and push it, then start item 6', by: 'user', at: 't5' },
+      { e: 1, at: 't6' },
+    ],
+  };
+  const [out] = summarizeSessions([s], { idleMinutes: 10, pricing: {}, itemIds: ['room', 'db'], titles });
+  assert.equal(out.itemId, 'room');
+  assert.deepEqual(out.itemActivity, { room: { mentions: 1, edits: 6, at: 't6' } });
 });

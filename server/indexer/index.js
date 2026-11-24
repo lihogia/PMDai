@@ -112,6 +112,7 @@ export class Index extends EventEmitter {
       idleMinutes: Number(settings.billing.idle_threshold_minutes) || 10,
       pricing: this.config.pricing,
       itemIds: bmad.items.map((i) => i.id),
+      titles: bmad.items.map((i) => [i.id, i.title]),
       aliases: new Map([
         ...bmad.items.filter((i) => i.sprintKey).map((i) => [i.sprintKey.toLowerCase(), i.id]),
         ...bmad.items.map((i) => [i.shortId.toLowerCase(), i.id]),

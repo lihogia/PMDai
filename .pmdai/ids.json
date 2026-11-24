@@ -6,5 +6,10 @@
   "item-detail-dialog": "BL-4",
   "item-ids": "BL-5",
   "live-item-status": "BL-6",
-  "recent-first-sort": "BL-7"
+  "recent-first-sort": "BL-7",
+  "bmad-git-baseline": "BL-8",
+  "housekeeping": "T-1",
+  "link-by-title": "BL-9",
+  "mute-trackers": "BL-10",
+  "shell-edits": "BL-11"
 }

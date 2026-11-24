@@ -53,7 +53,9 @@ Requires Node 20+. Settings in `pmdai.config.json` (copy to `pmdai.local.json` t
   (`5-4-bounce-...`) it mentions most. Sessions that mention none are "unlinked". Tip: start story work
   with the spec path in your prompt so the link is reliable.
 - **Item IDs**: every item gets a short ID like `PMD-E2-3` (epic 2, story 3), `PMD-BUG-4` or `PMD-BL-7`; naming it
-  in a prompt links the session too. Stories derive theirs; other items are numbered once and remembered in
+  in a prompt links the session too. So does an item's title (e.g. "start room page improvements item 2"): titles of
+  2+ words that no other item shares are matched in your prompts, Claude's replies and commit messages. A reply that
+  lists several items is a summary and links none of them. Stories derive theirs; other items are numbered once and remembered in
   `.pmdai/ids.json` (commit it). The prefix is set in the Settings tab.
 - **Live status**: an open item that Claude worked on in the last `activeItemDays` (default 7) shows as *In progress*,
   tagged **implementing** when code was edited (Edit/Write on non-markdown files) while it was the item last

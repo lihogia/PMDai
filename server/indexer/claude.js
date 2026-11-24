@@ -64,7 +64,7 @@ async function parseSessionFile(file) {
     paths: {},
     codeEdits: 0, // Edit/Write calls on files other than markdown: the session implemented something
     activity: {}, // mention -> { mentions, at }
-    trail: [], // in order: { m: mention that sets the focus } and { e: code edits, at }, resolved against known items later
+    trail: [], // in order: { m: mention }, { t: text you or Claude wrote, at } and { e: code edits, at }; resolved later
     gitBranch: null,
   };
   const seen = new Set();
@@ -85,6 +85,7 @@ async function parseSessionFile(file) {
         s.userTurns++;
         if (!s.firstPrompt) s.firstPrompt = text.slice(0, 200);
         if (s.userText.length < 6000) s.userText += ' ' + text.slice(0, 1500).toLowerCase();
+        s.trail.push({ t: text.slice(0, 1000), by: 'user', at: ev.timestamp || null });
       }
     }
     let lineEdits = 0;
@@ -92,6 +93,11 @@ async function parseSessionFile(file) {
       for (const c of ev.message.content) {
         const file = c.type === 'tool_use' && EDIT_TOOLS.has(c.name) && (c.input?.file_path || c.input?.notebook_path);
         if (file && !/\.md$/i.test(file)) lineEdits++;
+        // what Claude says, and commit messages: matched against item titles later
+        if (c.type === 'text') s.trail.push({ t: c.text.slice(0, 1000), by: 'claude', at: ev.timestamp || null });
+        else if (c.type === 'tool_use' && c.name === 'Bash' && /\bgit commit\b/.test(c.input?.command || '')) {
+          s.trail.push({ t: c.input.command.slice(0, 1000), by: 'commit', at: ev.timestamp || null });
+        }
       }
     }
     if (ev.type === 'assistant' && ev.message?.usage) {
@@ -170,8 +176,28 @@ export function sessionsForProject(all, root) {
   return all.filter((s) => s.cwd && (path.resolve(s.cwd) === r || path.resolve(s.cwd).startsWith(r + path.sep)));
 }
 
+const words = (t) => ` ${String(t).toLowerCase().replace(/[^\p{L}\p{N}]+/gu, ' ').trim()} `;
+
+/** Item titles that can be recognised in free text: without code, paths or brackets ("Room page improvements"),
+ *  at least 2 words and 12 characters, and unique in the project (claude-howto has many "Hands-on Exercises"). */
+export function titleIndex(titles) {
+  const seen = new Map();
+  for (const [id, title] of titles) {
+    const phrase = words(String(title).replace(/`[^`]*`|\([^)]*\)|\[[^\]]*\]|<[^>]*>/g, ' '));
+    if (phrase.trim().split(' ').length < 2 || phrase.trim().length < 12) continue;
+    seen.set(phrase, seen.has(phrase) ? null : id); // null: shared by several items
+  }
+  return [...seen].filter(([, id]) => id).sort((a, b) => b[0].length - a[0].length); // longest (most specific) first
+}
+
+/** Ids of items whose title appears in `text`, most specific first. */
+export function matchTitles(index, text) {
+  const w = words(text);
+  return index.filter(([phrase]) => w.includes(phrase)).map(([, id]) => id);
+}
+
 /** Summarize sessions for one project: active time, cost, attribution to known item ids. */
-export function summarizeSessions(sessions, { idleMinutes, pricing, itemIds, aliases = new Map(), root = '', workstreams = [], itemWorkstream = {} }) {
+export function summarizeSessions(sessions, { idleMinutes, pricing, itemIds, aliases = new Map(), titles = [], root = '', workstreams = [], itemWorkstream = {} }) {
   const rootL = root.toLowerCase();
   const wsMatch = (s) => {
     const score = {};
@@ -197,6 +223,12 @@ export function summarizeSessions(sessions, { idleMinutes, pricing, itemIds, ali
     for (const id of known) if (id.startsWith(mention) || mention.startsWith(id)) return id;
     return null;
   };
+  const byTitle = titleIndex(titles);
+  // Titles named in a text. Claude's replies often list or summarise several items: those count for none.
+  const titleHits = (t) => {
+    const hits = matchTitles(byTitle, t.t);
+    return t.by === 'claude' && hits.length > 1 ? [] : hits;
+  };
   // per item: mentions, code edits made while it was the item in focus (the last known item you or Claude
   // named before the edit), last time it was touched
   const resolveActivity = (s) => {
@@ -209,7 +241,11 @@ export function summarizeSessions(sessions, { idleMinutes, pricing, itemIds, ali
     let current = null;
     for (const t of s.trail || []) {
       if (t.m) current = resolveItem(t.m) || current; // an unknown ID (an example, test data) doesn't take the focus
-      else if (current) touch(current, t.at).edits += t.e;
+      else if (t.t != null) {
+        const hits = titleHits(t);
+        for (const id of hits) touch(id, t.at).mentions++;
+        if (hits.length === 1) current = hits[0]; // a list of several items is a summary, not a focus
+      } else if (current) touch(current, t.at).edits += t.e;
     }
     return out;
   };
@@ -223,6 +259,9 @@ export function summarizeSessions(sessions, { idleMinutes, pricing, itemIds, ali
         const id = resolveItem(m);
         if (id) counts[id] = (counts[id] || 0) + n;
       }
+      const itemActivity = resolveActivity(s);
+      // titles named in prompts and replies link the session too
+      for (const t of s.trail || []) if (t.t != null) for (const id of titleHits(t)) counts[id] = (counts[id] || 0) + 1;
       const ranked = Object.entries(counts).sort((a, b) => b[1] - a[1]);
       const tokens = Object.values(s.usage).reduce((a, u) => a + u.input + u.output + u.cacheWrite + u.cacheRead, 0);
       return {
@@ -233,7 +272,7 @@ export function summarizeSessions(sessions, { idleMinutes, pricing, itemIds, ali
         wallMinutes: Math.round((end - start) / 60000),
         userTurns: s.userTurns,
         codeEdits: s.codeEdits || 0,
-        itemActivity: resolveActivity(s),
+        itemActivity,
         tokens,
         usage: s.usage,
         cost: Math.round(costOf(s.usage, pricing) * 100) / 100,
